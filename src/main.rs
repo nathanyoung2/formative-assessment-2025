@@ -123,7 +123,10 @@ fn main() {
                 }
             }
             // exit the program
-            6 => break,
+            6 => {
+                file::save_tree(&tree);
+                break;
+            }
             _ => println!("Please enter a number in range (1-6)"),
         }
     }

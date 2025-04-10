@@ -131,10 +131,10 @@ pub struct NoGroupExistsErr;
 /// Holds references to important nodes on the tree.
 pub struct BirdTree {
     /// Tree root node
-    root: Rc<Node>,
+    pub root: Rc<Node>,
 
     /// Nodes with only 1 child depth
-    direct_parents: Vec<Rc<Node>>,
+    pub direct_parents: Vec<Rc<Node>>,
 }
 
 impl BirdTree {
@@ -194,6 +194,7 @@ impl BirdTree {
         None
     }
 
+    /// Get a group from name searching starting at a certain group
     fn get_group_with_name(group: Rc<Node>, group_name: &str) -> Option<Rc<Node>> {
         if let Node::Bird { .. } = &*group {
             return None;
@@ -249,6 +250,7 @@ impl BirdTree {
         return Ok(birds);
     }
 
+    // add a group to the tree by name of group and parent
     pub fn add_group(&self, parent: &str, new_group_name: &str) -> Result<(), NoGroupExistsErr> {
         let parent_group = match Self::get_group_with_name(Rc::clone(&self.root), parent) {
             Some(group) => group,
@@ -262,6 +264,7 @@ impl BirdTree {
         Ok(())
     }
 
+    // add a bird to the tree by name of group and parent
     pub fn add_bird(
         &self,
         parent: &str,
@@ -280,6 +283,7 @@ impl BirdTree {
         Ok(())
     }
 
+    ///
     pub fn insert_data(&mut self, data: &BirdData) {
         let mut current_group = Rc::clone(&self.root);
 
