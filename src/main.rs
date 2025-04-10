@@ -1,5 +1,7 @@
 mod birds;
 
+use birds::BirdsInGroupErr;
+
 use std::io::{Write, stdin, stdout};
 use std::str::FromStr;
 
@@ -62,7 +64,23 @@ fn main() {
                     }
                 }
             }
-            3 => todo!(),
+            3 => {
+                println!("Enter the bird group:");
+                if let Some(group_name) = get_user_input::<String>() {
+                    match tree.birds_in_group_from_name(&group_name) {
+                        Ok(birds) => {
+                            for bird in birds.iter() {
+                                println!("{}\n", bird);
+                            }
+                        }
+                        Err(e) => match e {
+                            BirdsInGroupErr::NoGroupExists => {
+                                println!("There is no group with name: {}", &group_name);
+                            }
+                        },
+                    }
+                }
+            }
             4 => todo!(),
             5 => todo!(),
             6 => break,

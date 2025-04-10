@@ -28,7 +28,7 @@ impl fmt::Display for Node {
                 ..
             } => write!(
                 f,
-                "{name}\n{scientific_name}\n{full_scientific_name}\n",
+                "{name}\n{scientific_name}\n{full_scientific_name}",
                 full_scientific_name = self.full_scientific_name().unwrap_or("".to_string()),
             ),
         }
@@ -123,6 +123,10 @@ impl Node {
     }
 }
 
+pub enum BirdsInGroupErr {
+    NoGroupExists,
+}
+
 /// Holds references to important nodes on the tree.
 pub struct BirdTree {
     /// Tree root node
@@ -163,7 +167,7 @@ impl BirdTree {
 
             // search through all direct parents to find the bird
             for child in children.iter() {
-                if child.scientific_name() == name {
+                if child.scientific_name().to_lowercase() == name.to_lowercase() {
                     return Some(Rc::clone(child));
                 }
             }
@@ -180,13 +184,61 @@ impl BirdTree {
 
             // search through all direct parents to find the bird
             for child in children.iter() {
-                if child.name() == name {
+                if child.name().to_lowercase() == name.to_lowercase() {
                     return Some(Rc::clone(child));
                 }
             }
         }
 
         None
+    }
+
+    fn get_group_with_name(group: Rc<Node>, group_name: &str) -> Option<Rc<Node>> {
+        if let Node::Bird { .. } = &*group {
+            return None;
+        }
+
+        for child in group.children().unwrap().borrow().iter() {
+            if let Node::Group { name, .. } = &**child {
+                // return the group if the name matches
+                if name.to_lowercase() == group_name.to_lowercase() {
+                    return Some(Rc::clone(child));
+                }
+
+                // otherwise call this function recursively
+                return Self::get_group_with_name(Rc::clone(child), group_name);
+            }
+        }
+
+        None
+    }
+
+    /// Recursively get birds in a group.
+    /// Birds will get added to the accumulator Vec.
+    fn birds_in_group(acc: &mut Vec<Rc<Node>>, group: Rc<Node>) {
+        for child in group.children().unwrap().borrow().iter() {
+            match &**child {
+                Node::Bird { .. } => acc.push(Rc::clone(child)),
+                Node::Group { .. } => Self::birds_in_group(acc, Rc::clone(child)),
+            }
+        }
+    }
+
+    /// Get all birds in a group from a group name.
+    pub fn birds_in_group_from_name(
+        &self,
+        group_name: &str,
+    ) -> Result<Vec<Rc<Node>>, BirdsInGroupErr> {
+        let group = match Self::get_group_with_name(Rc::clone(&self.root), group_name) {
+            Some(group) => group,
+            None => return Err(BirdsInGroupErr::NoGroupExists),
+        };
+
+        let mut birds = vec![];
+
+        Self::birds_in_group(&mut birds, Rc::clone(&group));
+
+        return Ok(birds);
     }
 }
 
@@ -208,26 +260,46 @@ pub fn build_tree() -> BirdTree {
     let prosthemadera = Rc::new(Node::new_group("Prosthemadera"));
 
     // organise tree of groups
-    Rc::clone(&animalia).add(Rc::clone(&chordata));
-    Rc::clone(&chordata).add(Rc::clone(&aves));
-    Rc::clone(&aves).add(Rc::clone(&psittiaciformes));
-    Rc::clone(&aves).add(Rc::clone(&apterygiformes));
-    Rc::clone(&aves).add(Rc::clone(&passeriformes));
-    Rc::clone(&psittiaciformes).add(Rc::clone(&strigopidae));
-    Rc::clone(&apterygiformes).add(Rc::clone(&apterygidae));
-    Rc::clone(&passeriformes).add(Rc::clone(&rhipiduridae));
-    Rc::clone(&passeriformes).add(Rc::clone(&meliphagidae));
-    Rc::clone(&strigopidae).add(Rc::clone(&nestor));
-    Rc::clone(&apterygidae).add(Rc::clone(&apteryx));
-    Rc::clone(&rhipiduridae).add(Rc::clone(&rhipidura));
-    Rc::clone(&meliphagidae).add(Rc::clone(&prosthemadera));
+    Rc::clone(&animalia).add(Rc::clone(&chordata)).unwrap();
+    Rc::clone(&chordata).add(Rc::clone(&aves)).unwrap();
+    Rc::clone(&aves).add(Rc::clone(&psittiaciformes)).unwrap();
+    Rc::clone(&aves).add(Rc::clone(&apterygiformes)).unwrap();
+    Rc::clone(&aves).add(Rc::clone(&passeriformes)).unwrap();
+    Rc::clone(&psittiaciformes)
+        .add(Rc::clone(&strigopidae))
+        .unwrap();
+    Rc::clone(&apterygiformes)
+        .add(Rc::clone(&apterygidae))
+        .unwrap();
+    Rc::clone(&passeriformes)
+        .add(Rc::clone(&rhipiduridae))
+        .unwrap();
+    Rc::clone(&passeriformes)
+        .add(Rc::clone(&meliphagidae))
+        .unwrap();
+    Rc::clone(&strigopidae).add(Rc::clone(&nestor)).unwrap();
+    Rc::clone(&apterygidae).add(Rc::clone(&apteryx)).unwrap();
+    Rc::clone(&rhipiduridae).add(Rc::clone(&rhipidura)).unwrap();
+    Rc::clone(&meliphagidae)
+        .add(Rc::clone(&prosthemadera))
+        .unwrap();
 
     // add birds to groups
-    Rc::clone(&nestor).add(Rc::new(Node::new_bird("Kaka", "meridionalis")));
-    Rc::clone(&nestor).add(Rc::new(Node::new_bird("Kea", "notabilis")));
-    Rc::clone(&apteryx).add(Rc::new(Node::new_bird("Little Spotted Kiwi", "owenii")));
-    Rc::clone(&rhipidura).add(Rc::new(Node::new_bird("Piwakawaka", "fuliginosa")));
-    Rc::clone(&prosthemadera).add(Rc::new(Node::new_bird("Tui", "novaeseelandiea")));
+    Rc::clone(&nestor)
+        .add(Rc::new(Node::new_bird("Kaka", "meridionalis")))
+        .unwrap();
+    Rc::clone(&nestor)
+        .add(Rc::new(Node::new_bird("Kea", "notabilis")))
+        .unwrap();
+    Rc::clone(&apteryx)
+        .add(Rc::new(Node::new_bird("Little Spotted Kiwi", "owenii")))
+        .unwrap();
+    Rc::clone(&rhipidura)
+        .add(Rc::new(Node::new_bird("Piwakawaka", "fuliginosa")))
+        .unwrap();
+    Rc::clone(&prosthemadera)
+        .add(Rc::new(Node::new_bird("Tui", "novaeseelandiea")))
+        .unwrap();
 
     let tree = BirdTree::new(
         animalia,
