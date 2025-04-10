@@ -46,11 +46,22 @@ fn main() {
                 println!("Enter the name of the bird:");
                 if let Some(name) = get_user_input::<String>() {
                     if let Some(bird) = tree.search_by_name(&name) {
-                        println!("\n\n{}", bird.borrow().display());
+                        println!("\n{}\n", bird);
+                    } else {
+                        println!("Could not find bird: {}", &name);
                     }
                 }
             }
-            2 => todo!(),
+            2 => {
+                println!("Enter the scientific name of the bird:");
+                if let Some(name) = get_user_input::<String>() {
+                    if let Some(bird) = tree.search_by_scientific_name(&name) {
+                        println!("\n{}\n", bird);
+                    } else {
+                        println!("Could not find bird with scientific name: {}", &name);
+                    }
+                }
+            }
             3 => todo!(),
             4 => todo!(),
             5 => todo!(),

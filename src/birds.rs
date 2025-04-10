@@ -1,260 +1,244 @@
 use std::cell::RefCell;
-use std::ops::Deref;
+use std::fmt;
 use std::rc::{Rc, Weak};
 
-pub trait Node {
-    fn get_name(&self) -> &str;
-    fn get_scientific_name(&self) -> &str;
-    fn get_parent(&self) -> Option<&Weak<RefCell<Group>>>;
+/// Represents a bird or group in a tree.
+pub enum Node {
+    /// A taxinomical grouping for birds.
+    Group {
+        name: String,
+        parent: RefCell<Weak<Node>>,
+        children: RefCell<Vec<Rc<Node>>>,
+    },
+    /// A bird. This must be at the bottom of the tree, therefore has no children.
+    Bird {
+        name: String,
+        scientific_name: String,
+        parent: RefCell<Weak<Node>>,
+    },
+}
 
-    fn display(&self) -> String {
-        format!(
-            "{}\n{}\n{}",
-            self.get_scientific_name(),
-            self.get_name(),
-            self.get_full_scientific_name()
-        )
+impl fmt::Display for Node {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Node::Group { name, .. } => write!(f, "{}", name),
+            Node::Bird {
+                name,
+                scientific_name,
+                ..
+            } => write!(
+                f,
+                "{name}\n{scientific_name}\n{full_scientific_name}\n",
+                full_scientific_name = self.full_scientific_name().unwrap_or("".to_string()),
+            ),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct NodeTypeError;
+
+impl Node {
+    /// Create a new group Node.
+    pub fn new_group(name: &str) -> Self {
+        Node::Group {
+            name: name.to_string(),
+            children: RefCell::new(vec![]),
+            parent: RefCell::new(Weak::new()),
+        }
     }
 
-    fn get_full_scientific_name(&self) -> String {
-        let path = if let Some(parent) = self.get_parent() {
-            if let Some(parent) = parent.upgrade() {
-                let parent_ref = parent.borrow();
-                let s = parent_ref.get_full_scientific_name();
-                s.to_string()
-            } else {
-                String::from("")
+    /// Create a new bird Node.
+    pub fn new_bird(name: &str, scientific_name: &str) -> Self {
+        Node::Bird {
+            name: name.to_string(),
+            scientific_name: scientific_name.to_string(),
+            parent: RefCell::new(Weak::new()),
+        }
+    }
+
+    /// Get the parent of a Node.
+    pub fn parent(&self) -> &RefCell<Weak<Node>> {
+        match self {
+            Node::Bird { parent, .. } => parent,
+            Node::Group { parent, .. } => parent,
+        }
+    }
+
+    /// Get the children of a Node.
+    pub fn children(&self) -> Result<&RefCell<Vec<Rc<Node>>>, NodeTypeError> {
+        match self {
+            Node::Group { children, .. } => Ok(children),
+            _ => Err(NodeTypeError),
+        }
+    }
+
+    /// Get the scientific name of a Node.
+    /// Note that this will just return the default name if the varient is Node::Group
+    pub fn scientific_name(&self) -> &str {
+        match self {
+            Node::Group { name, .. } => name,
+            Node::Bird {
+                scientific_name, ..
+            } => scientific_name,
+        }
+    }
+
+    /// Get the common name of a Node.
+    pub fn name(&self) -> &str {
+        match self {
+            Node::Group { name, .. } => name,
+            Node::Bird { name, .. } => name,
+        }
+    }
+
+    /// Get the full scientific name of a bird.
+    /// This is essentially a path of all the parents' names
+    pub fn full_scientific_name(&self) -> Option<String> {
+        Some(format!(
+            "{} {}",
+            self.parent()
+                .borrow()
+                .upgrade()?
+                .full_scientific_name()
+                .unwrap_or("".to_string())
+                .trim(),
+            self.scientific_name()
+        ))
+    }
+
+    /// Add a node to a group node.
+    /// Returns Err(NodeTypeError) if this function is called on a `Node::Bird` as a `Node::Bird`
+    /// has no children.
+    pub fn add(self: Rc<Self>, child: Rc<Self>) -> Result<(), NodeTypeError> {
+        match &*self {
+            Node::Group { children, .. } => {
+                *child.parent().borrow_mut() = Rc::downgrade(&self);
+                children.borrow_mut().push(child);
             }
-        } else {
-            String::from("")
-        };
-
-        return (path + " " + self.get_scientific_name()).trim().to_string();
-    }
-}
-
-pub trait NodeBuilder {
-    type Target;
-    fn build(self, parent: Weak<RefCell<Group>>) -> Rc<RefCell<Self::Target>>;
-}
-
-pub struct Group {
-    name: String,
-    children: Vec<Rc<RefCell<dyn Node>>>,
-    parent: Option<Weak<RefCell<Group>>>,
-}
-
-impl Group {
-    pub fn new(name: &str, parent: Weak<RefCell<Group>>) -> Self {
-        Self {
-            name: name.to_string(),
-            parent: Some(parent),
-            children: Vec::new(),
+            _ => return Err(NodeTypeError),
         }
-    }
-    /// Create a root group of a tree
-    pub fn root(name: &str) -> Self {
-        Self {
-            name: name.to_string(),
-            children: Vec::new(),
-            parent: None,
-        }
-    }
 
-    /// Add a node to the group.
-    /// This function takes in a node builder with a target that must be a node
-    /// The 'static bound is used to ensure that the node does not have any lifetime parameters
-    /// that live shorter than the length of the program, in the case of this program, none of the
-    /// nodes have lifetime parameters at all so this function is executable.
-    pub fn add<B, T>(this: Rc<RefCell<Self>>, node_builder: B) -> Rc<RefCell<T>>
-    where
-        B: NodeBuilder<Target = T>,
-        T: Node + 'static,
-    {
-        // Weak smart pointer is used as it means the value can still be dropped where there is a
-        // a reference held between children and parents, if Rc were used, the reference counter
-        // would never reach 0.
-        let self_weak = Rc::downgrade(&this);
-
-        // build the node with parent
-        let node = node_builder.build(self_weak);
-
-        // add the node to the group
-        this.borrow_mut().children.push(node.clone());
-        node
+        Ok(())
     }
 }
 
-struct GroupBuilder {
-    name: String,
-}
-
-impl GroupBuilder {
-    pub fn new(name: &str) -> Self {
-        Self {
-            name: name.to_string(),
-        }
-    }
-}
-
-impl NodeBuilder for GroupBuilder {
-    type Target = Group;
-    fn build(self, parent: Weak<RefCell<Group>>) -> Rc<RefCell<Group>> {
-        Rc::new(RefCell::new(Group::new(&self.name, parent)))
-    }
-}
-
-impl Node for Group {
-    fn get_name(&self) -> &str {
-        &self.name
-    }
-
-    fn get_parent(&self) -> Option<&Weak<RefCell<Group>>> {
-        self.parent.as_ref()
-    }
-
-    fn get_scientific_name(&self) -> &str {
-        self.get_name()
-    }
-}
-
-pub struct Bird {
-    name: String,
-    scientific_name: String,
-    parent: Weak<RefCell<Group>>,
-}
-
-impl Bird {
-    pub fn new(name: &str, scientific_name: &str, parent: Weak<RefCell<Group>>) -> Self {
-        Self {
-            name: name.to_string(),
-            scientific_name: scientific_name.to_string(),
-            parent,
-        }
-    }
-}
-
-impl Node for Bird {
-    fn get_name(&self) -> &str {
-        &self.name
-    }
-
-    fn get_scientific_name(&self) -> &str {
-        &self.scientific_name
-    }
-
-    fn get_parent(&self) -> Option<&Weak<RefCell<Group>>> {
-        Some(&self.parent)
-    }
-}
-
-pub struct BirdBuilder {
-    name: String,
-    scientific_name: String,
-}
-
-impl BirdBuilder {
-    pub fn new(name: &str, scientific_name: &str) -> Self {
-        Self {
-            name: name.to_string(),
-            scientific_name: scientific_name.to_string(),
-        }
-    }
-}
-
-impl NodeBuilder for BirdBuilder {
-    type Target = Bird;
-    fn build(self, parent: Weak<RefCell<Group>>) -> Rc<RefCell<Bird>> {
-        Rc::new(RefCell::new(Bird::new(
-            &self.name,
-            &self.scientific_name,
-            parent,
-        )))
-    }
-}
-
-impl Deref for Bird {
-    type Target = String;
-    fn deref(&self) -> &Self::Target {
-        &self.name
-    }
-}
-
-/// Holds references to important nodes in the tree for faster searching
+/// Holds references to important nodes on the tree.
 pub struct BirdTree {
-    /// The root node
-    root: Rc<RefCell<Group>>,
+    /// Tree root node
+    root: Rc<Node>,
 
-    /// Typically leaves would have no children, but here I am defining a leaf as having no groups
-    /// as children, only birds
-    leaves: Vec<Rc<RefCell<Group>>>,
+    /// Nodes with only 1 child depth
+    direct_parents: Vec<Rc<Node>>,
 }
 
 impl BirdTree {
-    pub fn new(root: Rc<RefCell<Group>>) -> Self {
-        Self {
-            root,
-            leaves: Vec::new(),
+    /// Build a new bird tree.
+    /// Returns None if root or one of the direct parents is a `Node::Bird`
+    pub fn new(root: Rc<Node>, direct_parents: Vec<Rc<Node>>) -> Option<Self> {
+        // assure that root is a group
+        if let Node::Bird { .. } = &*root {
+            return None;
         }
+
+        // assure that all direct parents are groups
+        for node in direct_parents.iter() {
+            if let Node::Bird { .. } = &**node {
+                return None;
+            }
+        }
+
+        // build the BirdTree
+        Some(Self {
+            root,
+            direct_parents,
+        })
     }
 
-    pub fn add_leaves(&mut self, leaves: Vec<Rc<RefCell<Group>>>) {
-        self.leaves.extend(leaves);
-    }
+    /// Find a bird node from its scientific name
+    pub fn search_by_scientific_name(&self, name: &str) -> Option<Rc<Node>> {
+        for group in self.direct_parents.iter() {
+            // can safely unwrap due BirdTree assuring that direct_parents only contains groups
+            let children = group.children().unwrap().borrow();
 
-    pub fn search_by_name(&self, name: &str) -> Option<Rc<RefCell<dyn Node>>> {
-        for group in self.leaves.iter() {
-            for bird in group.borrow().children.iter() {
-                let bird = bird.clone();
-                if bird.borrow().get_name() == name {
-                    return Some(bird);
+            // search through all direct parents to find the bird
+            for child in children.iter() {
+                if child.scientific_name() == name {
+                    return Some(Rc::clone(child));
                 }
             }
         }
+
+        None
+    }
+
+    /// Find a bird node from its common name
+    pub fn search_by_name(&self, name: &str) -> Option<Rc<Node>> {
+        for group in self.direct_parents.iter() {
+            // can safely unwrap due BirdTree assuring that direct_parents only contains groups
+            let children = group.children().unwrap().borrow();
+
+            // search through all direct parents to find the bird
+            for child in children.iter() {
+                if child.name() == name {
+                    return Some(Rc::clone(child));
+                }
+            }
+        }
+
         None
     }
 }
 
 pub fn build_tree() -> BirdTree {
-    // the clone method is NOT the clone method from the Clone
-    // trait, it is Rc::clone(), which means that the underlying value is not actually being
-    // cloned, only the reference counter is increasing.
-    let animalia = Rc::new(RefCell::new(Group::root("Animalia")));
-    let chordata = Group::add(animalia.clone(), GroupBuilder::new("Chordata"));
-    let aves = Group::add(chordata.clone(), GroupBuilder::new("Aves"));
-    let psittiaciformes = Group::add(aves.clone(), GroupBuilder::new("Psittiaciformes"));
-    let apterygiformes = Group::add(aves.clone(), GroupBuilder::new("Apterygiformes"));
-    let passeriformes = Group::add(aves.clone(), GroupBuilder::new("Passeriformes"));
-    let strigopidae = Group::add(psittiaciformes.clone(), GroupBuilder::new("Strigopidae"));
-    let apterygidae = Group::add(apterygiformes.clone(), GroupBuilder::new("Apterygidae"));
-    let rhipiduridae = Group::add(passeriformes.clone(), GroupBuilder::new("Rhipiduridae"));
-    let meliphagidae = Group::add(passeriformes.clone(), GroupBuilder::new("Meliphagidae"));
-    let nestor = Group::add(strigopidae.clone(), GroupBuilder::new("Nestor"));
-    let apteryx = Group::add(apterygidae.clone(), GroupBuilder::new("Apteryx"));
-    let rhipidura = Group::add(rhipiduridae.clone(), GroupBuilder::new("Rhipidura"));
-    let prosthemadera = Group::add(meliphagidae.clone(), GroupBuilder::new("Prosthemadera"));
-    let _ = Group::add(nestor.clone(), BirdBuilder::new("Kaka", "meridionalis"));
-    let _ = Group::add(nestor.clone(), BirdBuilder::new("Kea", "notabilis"));
-    let _ = Group::add(
-        apteryx.clone(),
-        BirdBuilder::new("Little Spotted Kiwi", "owenii"),
-    );
-    let _ = Group::add(
-        rhipidura.clone(),
-        BirdBuilder::new("Piwakawaka", "fuliginosa"),
-    );
-    let _ = Group::add(
-        prosthemadera.clone(),
-        BirdBuilder::new("Tui", "novaeseelandiea"),
-    );
+    // create bird groups
+    let animalia = Rc::new(Node::new_group("Animalia"));
+    let chordata = Rc::new(Node::new_group("Chordata"));
+    let aves = Rc::new(Node::new_group("Aves"));
+    let psittiaciformes = Rc::new(Node::new_group("Psittiaciformes"));
+    let apterygiformes = Rc::new(Node::new_group("Apterygiformes"));
+    let passeriformes = Rc::new(Node::new_group("Passeriformes"));
+    let strigopidae = Rc::new(Node::new_group("Strigopidae"));
+    let apterygidae = Rc::new(Node::new_group("Apterygidae"));
+    let rhipiduridae = Rc::new(Node::new_group("Rhipiduridae"));
+    let meliphagidae = Rc::new(Node::new_group("Meliphagidae"));
+    let nestor = Rc::new(Node::new_group("Nestor"));
+    let apteryx = Rc::new(Node::new_group("Apteryx"));
+    let rhipidura = Rc::new(Node::new_group("Rhipidura"));
+    let prosthemadera = Rc::new(Node::new_group("Prosthemadera"));
 
-    let mut tree = BirdTree::new(animalia);
-    tree.add_leaves(vec![
-        nestor.clone(),
-        apteryx.clone(),
-        rhipidura.clone(),
-        prosthemadera.clone(),
-    ]);
+    // organise tree of groups
+    Rc::clone(&animalia).add(Rc::clone(&chordata));
+    Rc::clone(&chordata).add(Rc::clone(&aves));
+    Rc::clone(&aves).add(Rc::clone(&psittiaciformes));
+    Rc::clone(&aves).add(Rc::clone(&apterygiformes));
+    Rc::clone(&aves).add(Rc::clone(&passeriformes));
+    Rc::clone(&psittiaciformes).add(Rc::clone(&strigopidae));
+    Rc::clone(&apterygiformes).add(Rc::clone(&apterygidae));
+    Rc::clone(&passeriformes).add(Rc::clone(&rhipiduridae));
+    Rc::clone(&passeriformes).add(Rc::clone(&meliphagidae));
+    Rc::clone(&strigopidae).add(Rc::clone(&nestor));
+    Rc::clone(&apterygidae).add(Rc::clone(&apteryx));
+    Rc::clone(&rhipiduridae).add(Rc::clone(&rhipidura));
+    Rc::clone(&meliphagidae).add(Rc::clone(&prosthemadera));
+
+    // add birds to groups
+    Rc::clone(&nestor).add(Rc::new(Node::new_bird("Kaka", "meridionalis")));
+    Rc::clone(&nestor).add(Rc::new(Node::new_bird("Kea", "notabilis")));
+    Rc::clone(&apteryx).add(Rc::new(Node::new_bird("Little Spotted Kiwi", "owenii")));
+    Rc::clone(&rhipidura).add(Rc::new(Node::new_bird("Piwakawaka", "fuliginosa")));
+    Rc::clone(&prosthemadera).add(Rc::new(Node::new_bird("Tui", "novaeseelandiea")));
+
+    let tree = BirdTree::new(
+        animalia,
+        vec![
+            nestor.clone(),
+            apteryx.clone(),
+            rhipidura.clone(),
+            prosthemadera.clone(),
+        ],
+    )
+    .expect("Didn't put in invalid values");
 
     tree
 }
