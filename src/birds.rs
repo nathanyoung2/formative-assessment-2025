@@ -2,6 +2,8 @@ use std::cell::RefCell;
 use std::fmt;
 use std::rc::{Rc, Weak};
 
+use crate::file::BirdData;
+
 /// Represents a bird or group in a tree.
 pub enum Node {
     /// A taxinomical grouping for birds.
@@ -166,7 +168,7 @@ impl BirdTree {
 
             // search through all direct parents to find the bird
             for child in children.iter() {
-                if child.scientific_name().to_lowercase() == name.to_lowercase() {
+                if child.scientific_name().to_lowercase().trim() == name.to_lowercase().trim() {
                     return Some(Rc::clone(child));
                 }
             }
@@ -183,7 +185,7 @@ impl BirdTree {
 
             // search through all direct parents to find the bird
             for child in children.iter() {
-                if child.name().to_lowercase() == name.to_lowercase() {
+                if child.name().to_lowercase().trim() == name.to_lowercase().trim() {
                     return Some(Rc::clone(child));
                 }
             }
@@ -200,12 +202,19 @@ impl BirdTree {
         for child in group.children().unwrap().borrow().iter() {
             if let Node::Group { name, .. } = &**child {
                 // return the group if the name matches
-                if name.to_lowercase() == group_name.to_lowercase() {
-                    return Some(Rc::clone(child));
+                if name.to_lowercase().trim() == group_name.to_lowercase().trim() {
+                    return Some(Rc::clone(&child));
                 }
+            }
+        }
 
-                // otherwise call this function recursively
-                return Self::get_group_with_name(Rc::clone(child), group_name);
+        // if the child cannot be found in this group, call the function recursively for all
+        // children
+        for child in group.children().unwrap().borrow().iter() {
+            if let Node::Group { .. } = &**child {
+                if let Some(group) = Self::get_group_with_name(Rc::clone(&child), &group_name) {
+                    return Some(group);
+                }
             }
         }
 
@@ -248,7 +257,7 @@ impl BirdTree {
 
         let new_group = Rc::new(Node::new_group(new_group_name));
 
-        parent_group.add(new_group);
+        parent_group.add(new_group).unwrap();
 
         Ok(())
     }
@@ -266,9 +275,36 @@ impl BirdTree {
 
         let new_bird = Rc::new(Node::new_bird(name, scientific_name));
 
-        parent_group.add(new_bird);
+        parent_group.add(new_bird).unwrap();
 
         Ok(())
+    }
+
+    pub fn insert_data(&mut self, data: &BirdData) {
+        let mut current_group = Rc::clone(&self.root);
+
+        // starting at index 1 to ignore the root node
+        for group_name in data.parent_nodes[1..].iter() {
+            if let Some(group) = Self::get_group_with_name(Rc::clone(&current_group), group_name) {
+                // if the group exists, search in it's children instead
+                current_group = Rc::clone(&group);
+            } else {
+                // if the group doesn't exist, create new groups
+                let new_group = Rc::new(Node::new_group(&group_name));
+                Rc::clone(&current_group)
+                    .add(Rc::clone(&new_group))
+                    .unwrap();
+
+                current_group = new_group
+            }
+        }
+
+        // add the final parent as a direct parent
+        self.direct_parents.push(Rc::clone(&current_group));
+
+        // add a bird to the final group
+        let bird = Rc::new(Node::new_bird(&data.common_name, &data.name));
+        current_group.add(bird).unwrap();
     }
 }
 

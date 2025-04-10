@@ -1,0 +1,15 @@
+[{
+    "parentNodes":["animalia","chordata","aves", "gruiformes", "rallidae", "porphyrio"],
+    "name":"hochstetteri",
+    "commonName":"Takahē"
+},
+{
+    "parentNodes":["animalia", "chordata", "aves", "passeriformes","notiomystidae", "notiomystis"],
+    "name":"cincta",
+    "commonName":"Hihi"
+},
+{
+    "parentNodes":["animalia", "chordata", "aves", "passeriformes", "meliphagidae", "anthornis"],
+    "name":"melanura",
+    "commonName":"New Zealand bellbird"
+}]

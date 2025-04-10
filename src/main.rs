@@ -1,4 +1,5 @@
 mod birds;
+mod file;
 
 use std::io::{Write, stdin, stdout};
 use std::str::FromStr;
@@ -17,7 +18,11 @@ where
 }
 
 fn main() {
-    let tree = birds::build_tree();
+    // build the tree
+    let mut tree = birds::build_tree();
+
+    // load json contents into the tree
+    file::load_to_tree(&mut tree);
 
     let message = "Welcome to Zealandia Tracker.\n
             Please choose a task:
@@ -43,6 +48,7 @@ fn main() {
         // perform actions on the user's choice
         match choice {
             1 => {
+                // search for bird details by name
                 println!("Enter the name of the bird:");
                 if let Some(name) = get_user_input::<String>() {
                     if let Some(bird) = tree.search_by_name(&name) {
@@ -53,6 +59,7 @@ fn main() {
                 }
             }
             2 => {
+                // search for bird details by scientific name
                 println!("Enter the scientific name of the bird:");
                 if let Some(name) = get_user_input::<String>() {
                     if let Some(bird) = tree.search_by_scientific_name(&name) {
@@ -63,6 +70,7 @@ fn main() {
                 }
             }
             3 => {
+                // get all birds in a group
                 println!("Enter the bird group:");
                 if let Some(group_name) = get_user_input::<String>() {
                     match tree.birds_in_group_from_name(&group_name) {
@@ -78,6 +86,7 @@ fn main() {
                 }
             }
             4 => {
+                // add a group
                 println!("Enter the parent group");
                 if let Some(parent_group) = get_user_input::<String>() {
                     println!("Enter the new group name");
@@ -94,6 +103,7 @@ fn main() {
                 }
             }
             5 => {
+                // add a bird
                 println!("Enter the parent group");
                 if let Some(parent_group) = get_user_input::<String>() {
                     println!("Enter the new bird name");
@@ -112,6 +122,7 @@ fn main() {
                     }
                 }
             }
+            // exit the program
             6 => break,
             _ => println!("Please enter a number in range (1-6)"),
         }
