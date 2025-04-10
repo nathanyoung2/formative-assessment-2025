@@ -1,7 +1,5 @@
 mod birds;
 
-use birds::BirdsInGroupErr;
-
 use std::io::{Write, stdin, stdout};
 use std::str::FromStr;
 
@@ -73,16 +71,47 @@ fn main() {
                                 println!("{}\n", bird);
                             }
                         }
-                        Err(e) => match e {
-                            BirdsInGroupErr::NoGroupExists => {
-                                println!("There is no group with name: {}", &group_name);
-                            }
-                        },
+                        Err(_) => {
+                            println!("There is no group with name: {}", &group_name);
+                        }
                     }
                 }
             }
-            4 => todo!(),
-            5 => todo!(),
+            4 => {
+                println!("Enter the parent group");
+                if let Some(parent_group) = get_user_input::<String>() {
+                    println!("Enter the new group name");
+                    if let Some(new_group) = get_user_input::<String>() {
+                        match tree.add_group(&parent_group, &new_group) {
+                            Ok(()) => {
+                                println!("Added {}, to {}\n", &new_group, &parent_group);
+                            }
+                            Err(_) => {
+                                println!("There is no group with name: {}", &parent_group);
+                            }
+                        }
+                    }
+                }
+            }
+            5 => {
+                println!("Enter the parent group");
+                if let Some(parent_group) = get_user_input::<String>() {
+                    println!("Enter the new bird name");
+                    if let Some(name) = get_user_input::<String>() {
+                        println!("Enter the new bird's scientific name");
+                        if let Some(scientific_name) = get_user_input::<String>() {
+                            match tree.add_bird(&parent_group, &name, &scientific_name) {
+                                Ok(()) => {
+                                    println!("Added {}, to {}\n", &name, &parent_group);
+                                }
+                                Err(_) => {
+                                    println!("There is no group with name: {}", &parent_group);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             6 => break,
             _ => println!("Please enter a number in range (1-6)"),
         }

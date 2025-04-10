@@ -123,9 +123,8 @@ impl Node {
     }
 }
 
-pub enum BirdsInGroupErr {
-    NoGroupExists,
-}
+#[derive(Debug)]
+pub struct NoGroupExistsErr;
 
 /// Holds references to important nodes on the tree.
 pub struct BirdTree {
@@ -228,10 +227,10 @@ impl BirdTree {
     pub fn birds_in_group_from_name(
         &self,
         group_name: &str,
-    ) -> Result<Vec<Rc<Node>>, BirdsInGroupErr> {
+    ) -> Result<Vec<Rc<Node>>, NoGroupExistsErr> {
         let group = match Self::get_group_with_name(Rc::clone(&self.root), group_name) {
             Some(group) => group,
-            None => return Err(BirdsInGroupErr::NoGroupExists),
+            None => return Err(NoGroupExistsErr),
         };
 
         let mut birds = vec![];
@@ -239,6 +238,37 @@ impl BirdTree {
         Self::birds_in_group(&mut birds, Rc::clone(&group));
 
         return Ok(birds);
+    }
+
+    pub fn add_group(&self, parent: &str, new_group_name: &str) -> Result<(), NoGroupExistsErr> {
+        let parent_group = match Self::get_group_with_name(Rc::clone(&self.root), parent) {
+            Some(group) => group,
+            None => return Err(NoGroupExistsErr),
+        };
+
+        let new_group = Rc::new(Node::new_group(new_group_name));
+
+        parent_group.add(new_group);
+
+        Ok(())
+    }
+
+    pub fn add_bird(
+        &self,
+        parent: &str,
+        name: &str,
+        scientific_name: &str,
+    ) -> Result<(), NoGroupExistsErr> {
+        let parent_group = match Self::get_group_with_name(Rc::clone(&self.root), parent) {
+            Some(group) => group,
+            None => return Err(NoGroupExistsErr),
+        };
+
+        let new_bird = Rc::new(Node::new_bird(name, scientific_name));
+
+        parent_group.add(new_bird);
+
+        Ok(())
     }
 }
 
