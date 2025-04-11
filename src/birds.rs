@@ -21,6 +21,7 @@ pub enum Node {
 }
 
 impl fmt::Display for Node {
+    /// Define how a node gets displayed
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Node::Group { name, .. } => write!(f, "{}", name),
@@ -283,7 +284,7 @@ impl BirdTree {
         Ok(())
     }
 
-    ///
+    /// convert data from file into nodes
     pub fn insert_data(&mut self, data: &BirdData) {
         let mut current_group = Rc::clone(&self.root);
 
@@ -312,6 +313,7 @@ impl BirdTree {
     }
 }
 
+/// Build a hardcoded tree of birds
 pub fn build_tree() -> BirdTree {
     // create bird groups
     let animalia = Rc::new(Node::new_group("Animalia"));
