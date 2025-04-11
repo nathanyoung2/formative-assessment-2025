@@ -4,6 +4,8 @@ mod file;
 use std::io::{Write, stdin, stdout};
 use std::str::FromStr;
 
+use birds::GroupError;
+
 /// Returns the user input parsed to the type T
 fn get_user_input<T>() -> Option<T>
 where
@@ -95,9 +97,14 @@ fn main() {
                             Ok(()) => {
                                 println!("Added {}, to {}\n", &new_group, &parent_group);
                             }
-                            Err(_) => {
-                                println!("There is no group with name: {}", &parent_group);
-                            }
+                            Err(e) => match e {
+                                GroupError::NoGroupExistsErr => {
+                                    println!("There is no group with name: {}", &parent_group);
+                                }
+                                GroupError::InputOutsideOfBoundsError => {
+                                    println!("Please enter a valid string with length 1-50");
+                                }
+                            },
                         }
                     }
                 }
@@ -114,9 +121,14 @@ fn main() {
                                 Ok(()) => {
                                     println!("Added {}, to {}\n", &name, &parent_group);
                                 }
-                                Err(_) => {
-                                    println!("There is no group with name: {}", &parent_group);
-                                }
+                                Err(e) => match e {
+                                    GroupError::NoGroupExistsErr => {
+                                        println!("There is no group with name: {}", &parent_group);
+                                    }
+                                    GroupError::InputOutsideOfBoundsError => {
+                                        println!("Please enter a valid string with length 1-50");
+                                    }
+                                },
                             }
                         }
                     }

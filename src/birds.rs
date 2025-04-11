@@ -127,7 +127,10 @@ impl Node {
 }
 
 #[derive(Debug)]
-pub struct NoGroupExistsErr;
+pub enum GroupError {
+    NoGroupExistsErr,
+    InputOutsideOfBoundsError,
+}
 
 /// Holds references to important nodes on the tree.
 pub struct BirdTree {
@@ -235,13 +238,10 @@ impl BirdTree {
     }
 
     /// Get all birds in a group from a group name.
-    pub fn birds_in_group_from_name(
-        &self,
-        group_name: &str,
-    ) -> Result<Vec<Rc<Node>>, NoGroupExistsErr> {
+    pub fn birds_in_group_from_name(&self, group_name: &str) -> Result<Vec<Rc<Node>>, GroupError> {
         let group = match Self::get_group_with_name(Rc::clone(&self.root), group_name) {
             Some(group) => group,
-            None => return Err(NoGroupExistsErr),
+            None => return Err(GroupError::NoGroupExistsErr),
         };
 
         let mut birds = vec![];
@@ -252,10 +252,13 @@ impl BirdTree {
     }
 
     // add a group to the tree by name of group and parent
-    pub fn add_group(&self, parent: &str, new_group_name: &str) -> Result<(), NoGroupExistsErr> {
+    pub fn add_group(&self, parent: &str, new_group_name: &str) -> Result<(), GroupError> {
+        if new_group_name.len() < 1 || new_group_name.len() > 50 {
+            return Err(GroupError::InputOutsideOfBoundsError);
+        }
         let parent_group = match Self::get_group_with_name(Rc::clone(&self.root), parent) {
             Some(group) => group,
-            None => return Err(NoGroupExistsErr),
+            None => return Err(GroupError::NoGroupExistsErr),
         };
 
         let new_group = Rc::new(Node::new_group(new_group_name));
@@ -271,10 +274,17 @@ impl BirdTree {
         parent: &str,
         name: &str,
         scientific_name: &str,
-    ) -> Result<(), NoGroupExistsErr> {
+    ) -> Result<(), GroupError> {
+        if name.len() < 1
+            || name.len() > 50
+            || scientific_name.len() < 1
+            || scientific_name.len() > 50
+        {
+            return Err(GroupError::InputOutsideOfBoundsError);
+        }
         let parent_group = match Self::get_group_with_name(Rc::clone(&self.root), parent) {
             Some(group) => group,
-            None => return Err(NoGroupExistsErr),
+            None => return Err(GroupError::NoGroupExistsErr),
         };
 
         let new_bird = Rc::new(Node::new_bird(name, scientific_name));
