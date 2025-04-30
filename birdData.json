@@ -1,15 +1,1 @@
-[{
-    "parentNodes":["animalia","chordata","aves", "gruiformes", "rallidae", "porphyrio"],
-    "name":"hochstetteri",
-    "commonName":"Takahē"
-},
-{
-    "parentNodes":["animalia", "chordata", "aves", "passeriformes","notiomystidae", "notiomystis"],
-    "name":"cincta",
-    "commonName":"Hihi"
-},
-{
-    "parentNodes":["animalia", "chordata", "aves", "passeriformes", "meliphagidae", "anthornis"],
-    "name":"melanura",
-    "commonName":"New Zealand bellbird"
-}]
+[{"parentNodes":["chordata","aves","psittiaciformes","strigopidae","nestor","meridionalis"],"name":"meridionalis","commonName":"Kaka"},{"parentNodes":["chordata","aves","psittiaciformes","strigopidae","nestor","notabilis"],"name":"notabilis","commonName":"Kea"},{"parentNodes":["chordata","aves","apterygiformes","apterygidae","apteryx","owenii"],"name":"owenii","commonName":"Little Spotted Kiwi"},{"parentNodes":["chordata","aves","passeriformes","rhipiduridae","rhipidura","fuliginosa"],"name":"fuliginosa","commonName":"Piwakawaka"},{"parentNodes":["chordata","aves","passeriformes","meliphagidae","prosthemadera","novaeseelandiea"],"name":"novaeseelandiea","commonName":"Tui"},{"parentNodes":["chordata","aves","gruiformes","rallidae","porphyrio","hochstetteri"],"name":"hochstetteri","commonName":"Takahē"},{"parentNodes":["chordata","aves","passeriformes","notiomystidae","notiomystis","cincta"],"name":"cincta","commonName":"Hihi"},{"parentNodes":["chordata","aves","passeriformes","meliphagidae","anthornis","melanura"],"name":"melanura","commonName":"New Zealand bellbird"}]

@@ -51,7 +51,7 @@ pub fn save_tree(tree: &BirdTree) {
         }
     }
 
-    let mut file = File::open("birdData.json").unwrap();
+    let mut file = File::create("birdData.json").unwrap();
     let json = serde_json::to_string(&data).unwrap();
     file.write_all(json.as_bytes())
         .expect("Failed to write to file");
